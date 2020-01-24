@@ -1,0 +1,49 @@
+1163a1164,1171
+> 
+>     /// The minimum satoshis this node is required to reserve in its balance.
+>     int64 local_chan_reserve_sat = 20 [json_name = "local_chan_reserve_sat"];
+> 
+>     /**
+>     The minimum satoshis the other node is required to reserve in its balance.
+>     */
+>     int64 remote_chan_reserve_sat = 21 [json_name = "remote_chan_reserve_sat"];
+1470a1479,1487
+>        
+>         /// The minimum satoshis this node is required to reserve in its balance.
+>         int64 local_chan_reserve_sat = 6 [json_name = "local_chan_reserve_sat"];
+> 
+>         /**
+>         The minimum satoshis the other node is required to reserve in its
+>         balance.
+>         */
+>         int64 remote_chan_reserve_sat = 7 [json_name = "remote_chan_reserve_sat"];
+1636a1654,1659
+> 
+>     /**
+>     If set to true, edge probabilities from mission control will be used to get
+>     the optimal route.
+>     */
+>     bool use_mission_control = 9;
+1779a1803
+>     uint32 last_update = 7 [json_name = "last_update"];
+1799c1823
+<     uint32 last_update = 3 [json_name = "last_update"];
+---
+>     uint32 last_update = 3 [json_name = "last_update", deprecated = true];
+1853a1878,1880
+>     // The number of edges marked as zombies.
+>     uint64 num_zombie_chans = 11 [json_name = "num_zombie_chans"];
+> 
+2150,2151c2177,2178
+<     /// The fee paid for this payment in satoshis
+<     int64 fee = 5 [json_name = "fee"];
+---
+>     /// Deprecated, use fee_sat or fee_msat.
+>     int64 fee = 5 [json_name = "fee", deprecated = true];
+2173a2201,2206
+> 
+>     ///  The fee paid for this payment in satoshis
+>     int64 fee_sat = 11 [json_name = "fee_sat"];
+> 
+>     ///  The fee paid for this payment in milli-satoshis
+>     int64 fee_msat = 12 [json_name = "fee_msat"];
