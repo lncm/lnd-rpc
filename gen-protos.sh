@@ -69,22 +69,6 @@ generate() {
 
     echo
   done
-
-  #	go_file=rpc.pb.go
-
-  #	cat "${t}/${proto_file}" | sed 's|github.com/lightningnetwork/lnd/lnrpc|lnd|'  > "lnd/${proto_file}"
-  #
-  #	protoc --go_out=plugins=grpc,paths=source_relative:./lnd/  -Ilnd/  "lnd/${proto_file}"
-  #
-  #	mv "lnd/${go_file}"  "${t}/"
-  #
-  #	if [[ -n "${prev}" ]]; then
-  #		diff  "${prev}/${proto_file}"	"${t}/${proto_file}"	> "${t}/proto-diff-to-${prev}.patch"
-  #		diff  "${prev}/${go_file}"		"${t}/${go_file}"			> "${t}/go-diff-to-${prev}.patch"
-  #	fi
-  #
-
-
 }
 
 
