@@ -26,7 +26,6 @@ fetch_all_protos() {
   done
 }
 
-
 download() {
   # Download all dependencies external to lnd
   DIR=google/api
