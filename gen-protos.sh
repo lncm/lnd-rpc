@@ -1,6 +1,7 @@
 #!/bin/sh
 
-TAG=$1
+ACTION=${1:-all}
+TAG=$2
 
 REPO=lightningnetwork/lnd
 
@@ -54,9 +55,20 @@ download() {
 }
 
 generate() {
+  for version in ./v**; do
+    if [ "${TAG}" != "" ] && [ "./${TAG}" != "${version}" ]; then
+      continue
+    fi
 
+    echo "${version}"
+    for proto in $(find "${version}" -type f -name '*.proto'); do
+      printf "Generating %s…\n" "${proto}"
 
-ls
+      protoc --go_out=plugins=grpc,paths=source_relative:.  -I.  -I"${version}"  "${proto}"
+    done
+
+    echo
+  done
 
   #	go_file=rpc.pb.go
 
@@ -74,3 +86,12 @@ ls
 
 
 }
+
+
+if [ "${ACTION}" = "all" ] || [ "${ACTION}" = "download" ]; then
+  download
+fi
+
+if [ "${ACTION}" = "all" ] || [ "${ACTION}" = "generate" ]; then
+  generate
+fi
