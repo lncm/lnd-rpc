@@ -5,6 +5,12 @@ TAG=$2
 
 REPO=lightningnetwork/lnd
 
+# If `gsed` is available in the system, then use it instead as the available `sed` might not be too able (MacOS)…
+SED="sed"
+if command -v gsed >/dev/null; then
+  SED=gsed
+fi
+
 fetch_all_protos() {
   tag=$1
   dir=$2
@@ -54,13 +60,34 @@ download() {
 }
 
 generate() {
-  for version in ./v**; do
-    if [ "${TAG}" != "" ] && [ "./${TAG}" != "${version}" ]; then
+  for dir in ./v**; do
+    version="$(basename "${dir}")"
+
+    if [ "${TAG}" != "" ] && [ "${TAG}" != "${version}" ]; then
       continue
     fi
 
     echo "${version}"
-    for proto in $(find "${version}" -type f -name '*.proto'); do
+    mkdir -p "./${version}/lnrpc/"
+
+    [ -f "./${version}/rpc.proto" ] && mv  "./${version}/rpc.proto"  "./${version}/lnrpc/rpc.proto"
+
+    files=$(find "./${version}" -type f -name '*.proto')
+    for proto in ${files}; do
+      printf "Processing %s…\n" "${proto}"
+
+      suffix=""
+      if [ "$(basename "${proto}")"  = "rpc.proto" ]; then
+        suffix="/lnrpc"
+      fi
+
+      ${SED} -i \
+        -e "s|github.com/lightningnetwork/lnd/lnrpc|github.com/lncm/lnd-rpc/${version}${suffix}|g" \
+        -e "s|\([^/]\)\(rpc.proto\)|\1lnrpc/\2|g" \
+        "${proto}"
+    done
+
+    for proto in ${files}; do
       printf "Generating %s…\n" "${proto}"
 
       protoc --go_out=plugins=grpc,paths=source_relative:.  -I.  -I"${version}"  "${proto}"
