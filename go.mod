@@ -1,3 +1,3 @@
-module github.com/lncm/lnd-rpc/v0.9.0
+module github.com/lncm/lnd-rpc
 
 go 1.13
