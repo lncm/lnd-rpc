@@ -1,0 +1,171 @@
+#!/usr/bin/env sh
+
+set -e
+
+#
+##
+#
+
+show_help() {
+  cat << EOF >&2
+generate-go v1.0.0
+
+Compile all .proto definitions into importable .go files
+
+Usage: generate-go [options] LND_VERSION
+
+Where LND_VERSION is in a form: [v]MAJOR.MINOR.PATCH (ex: v0.9.0), or "all" to generate for all versions
+
+Options:
+
+  -h, --help, help      Show this help message
+  -o, --output          Save generated files to a specified dir (created, if doesn't exist)
+
+Examples:
+
+  ./generate-go all
+  ./generate-go  -o /tmp/last/  v0.9.0
+
+github: github.com/lncm/lnd-rpc/
+
+EOF
+}
+
+# If no arguments passed, show help and exit
+if [ "$#" -le 0 ]; then
+  show_help
+  exit 1
+fi
+
+# Define logging utility fns as early as possible
+log() {
+  # shellcheck disable=SC2059
+  >&2 printf "$*\n"
+}
+log_pad() {
+  log "\t$*"
+}
+log_arrow() {
+  log_pad "-> $*"
+}
+log_err() {
+  log
+  log_pad  "ERR: $*"
+  log
+}
+log_ok() {
+  log_arrow "${*:-ok}" # if nothing passed, write "ok"
+}
+log_err_input() {
+  log_err "$*"
+  show_help
+}
+
+
+# DIR is scoped globally, because it can be used anywhere
+DIR=
+
+
+check_dependencies() {
+  log "Checking dependencies…"
+  for  cmd  in  "$@"; do
+    if ! command -v "${cmd}" >/dev/null 2>&1; then
+      log_err "This script requires \"${cmd}\" to be installed"
+      exit 1
+    fi
+  done
+  log_ok
+}
+
+
+# Take .proto file, and generate a .go file out of it
+generate_go_for_tag() {
+  tag=$1
+
+  log "Generating .go for ${tag#./}…"
+  for  proto  in  "${tag}"/*/*.proto; do
+    log_arrow "${proto#./}…"
+    protoc --go_out=plugins=grpc,paths=source_relative:${DIR}  -I.  -I"${tag}"  "${proto}"
+  done
+
+  log_ok "done"
+}
+
+
+#
+##  MAIN;  This is where the logic of execution begins
+#
+while :; do
+  opt="$1"
+
+  # Handle fmt: `--output=/tmp/` or `-o=/tmp/`;  Split `opt` on `=` into `opt` & `value`
+  # NOTE: prepended with `=`, because if `-d` isn't found, `cut` ignores `-f`, and returns the whole string regardless…
+  value="$(echo "=${opt}" | cut -d= -f3)"
+  if [ -n "${value}" ]; then
+    opt="$(echo "=${opt}" | cut -d= -f2)"
+  fi
+
+  case "${opt}" in
+    -h|--help|help)
+      show_help
+      exit 0
+      ;;
+
+    -o|--output)
+      if [ -z "${value}" ] && [ "$2" = "${2#-}" ]; then
+        value="$2"
+        shift
+      fi
+
+      if [ -z "${value}" ]; then
+        log_err_input "${opt} requires a non-empty argument"
+        exit 1
+      fi
+
+      DIR="${value}"
+      ;;
+
+    --) shift ; break ;;
+
+    -?*)
+      log_err_input "Unknown option: $1"
+      exit 1
+      ;;
+
+    *) break
+  esac
+
+  shift
+done
+
+
+# If DIR is already set, use it
+# If not, use `pwd`
+DIR="${DIR:-$(pwd)}"
+
+if [ -z "$1" ]; then
+  log_err_input 'Lnd version has to be provided (ex: v0.9.0), or "all"'
+  exit 1
+fi
+
+TAG="$1"
+shift
+
+if [ "${TAG}" !=  "all" ]; then
+  # Make sure version always starts with v
+  TAG="v${TAG#v}"
+
+  # Remove possible`-beta` suffix
+  TAG="$(echo "${TAG}" | cut -d- -f1)"
+
+else
+  TAG=
+fi
+
+check_dependencies protoc
+mkdir -p "${DIR}"
+
+# Use TAG, if provided, otherwise loop through all ./v*/ directories
+for  dir  in  ./${TAG:-v**}; do
+  generate_go_for_tag "${dir}"
+done

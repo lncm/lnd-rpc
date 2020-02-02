@@ -7605,11 +7605,11 @@ var fileDescriptor_76e5b568af3da72b = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConn
+var _ grpc.ClientConnInterface
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
+const _ = grpc.SupportPackageIsVersion6
 
 // WalletUnlockerClient is the client API for WalletUnlocker service.
 //
@@ -7650,10 +7650,10 @@ type WalletUnlockerClient interface {
 }
 
 type walletUnlockerClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewWalletUnlockerClient(cc *grpc.ClientConn) WalletUnlockerClient {
+func NewWalletUnlockerClient(cc grpc.ClientConnInterface) WalletUnlockerClient {
 	return &walletUnlockerClient{cc}
 }
 
@@ -8091,10 +8091,10 @@ type LightningClient interface {
 }
 
 type lightningClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewLightningClient(cc *grpc.ClientConn) LightningClient {
+func NewLightningClient(cc grpc.ClientConnInterface) LightningClient {
 	return &lightningClient{cc}
 }
 
