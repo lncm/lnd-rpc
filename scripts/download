@@ -1,0 +1,312 @@
+#!/usr/bin/env sh
+
+set -e
+
+show_help() {
+  cat << EOF >&2
+download v1.0.0
+
+Download all .proto files necessary to build lnd's gRPC client libraries
+
+Usage: ./scripts/download [options] LND_VERSION
+
+Where LND_VERSION is in a form: [v]MAJOR.MINOR.PATCH (ex: v0.9.0), or "all" to download all versions
+
+Options:
+
+  -h, --help, help      Show this help message
+  -G, --no-google       Skip download of google/api/* and google/protobuf/*
+  -S, --strip-version   Don't include lnd version in the path (only works if LND_VERSION != "all")
+  -o, --output          Download to a specified dir (will be created, if doesn't exist)
+
+Examples:
+
+  ./scripts/download  all                          # Download all lnd versions, and all google/* protos
+  ./scripts/download  --no-google  v0.4.2          # Only download protos for lnd v0.4.2, and no google/* protos
+  ./scripts/download  -G -S -o=~/last-lnd/ v0.9.0  # Only download protos for lnd v0.9.0, and save them to last-lnd/
+                                                   #    in user's HOME directory w/o the /LND_VERSION/ segment in path
+
+github: github.com/lncm/lnd-rpc/
+
+EOF
+}
+
+# If no arguments passed, show help and exit
+if [ "$#" -le 0 ]; then
+  show_help
+  exit 1
+fi
+
+## Define logging utility fns as early as possible
+log() {
+  # shellcheck disable=SC2059
+  >&2 printf "$*\n"
+}
+log_pad() {
+  log "\t$*"
+}
+log_arrow() {
+  log_pad "-> $*"
+}
+log_err() {
+  log
+  log_pad  "ERR: $*"
+  log
+}
+log_ok() {
+  log_arrow "${*:-ok}" # if nothing passed, write "ok"
+}
+log_err_input() {
+  log_err "$*"
+  show_help
+}
+
+
+# If `gsed` is available (MacOS built-in `sed` is hardly functional)
+SED="sed"
+if command -v gsed >/dev/null; then
+  SED=gsed
+fi
+
+
+## These hold things set via command line. Better to have them scoped globally
+DIR=
+GOOGLE_PROTOS=true
+STRIP_VER=false
+
+
+check_dependencies() {
+  log "Checking dependencies…"
+  for  cmd  in  "$@"; do
+    if ! command -v "${cmd}" >/dev/null 2>&1; then
+      log_err "This script requires \"${cmd}\" to be installed"
+      exit 1
+    fi
+  done
+  log_ok
+}
+
+
+# Fetch core protobuf definitions
+fetch_core_protos() {
+  log "Getting latest git-tag for protocolbuffers/protobuf…"
+  last=$(wget -qO- "https://api.github.com/repos/protocolbuffers/protobuf/releases/latest" | jq -r '.tag_name')
+  log_ok "${last}"
+
+  # Create a temporary directory
+  tmp_dir="$(mktemp -d)"
+
+  # Download last release of protoc for the current OS & architecture
+  log "Downloading protoc ${last} bundle…"
+  # NOTE: only .proto files are used from there, so OS/ARCH pair doesn't matter at all
+  wget --quiet  --output-document="${tmp_dir}/protoc.zip" \
+      "https://github.com/protocolbuffers/protobuf/releases/download/${last}/protoc-${last#v}-linux-x86_64.zip"
+  log_ok
+
+  # Unzip downloaded release in temp dir;  Wrapped with a subshell to `cd` w/o side effects
+  (
+    log "Processing core protos…"
+    cd "${tmp_dir}"
+    unzip -q protoc.zip
+    log_ok "unzipped"
+
+    cd include/
+    find google/protobuf -type d -exec mkdir -p "${DIR}/{}" \;
+    log_ok "dirs created"
+
+    find google  -name '*.proto'  -type f  -exec mv -f  {}  "${DIR}/{}"  \;
+    log_ok "files moved"
+  )
+
+  # clean up
+  rm -rf "${tmp_dir}"
+  log_ok "cleaned up"
+  log_ok "done"
+}
+
+# Fetch Google's API definitions that lnd (for whatever reason) uses
+fetch_googleapis() {
+  dir=google/api
+  url_base=https://raw.githubusercontent.com/googleapis/googleapis/master/
+
+  log "Downloading known lnd deps from ${dir}…"
+
+  mkdir -p "${DIR}/${dir}/"
+
+  for proto  in  annotations  http; do
+    full_path="${dir}/${proto}.proto"
+
+    log_arrow "${full_path}"
+    wget --quiet  -O-  "${url_base}/${full_path}"  >  "${DIR}/${full_path}"
+  done
+
+  log_ok "done"
+}
+
+# Copy `.proto` files from a temporary directory to a destination location
+lnd_copy_files() {
+  tag=$1
+
+  dir="${DIR}/${tag}"
+  if [ "${STRIP_VER}" = "true" ]; then
+      dir="${DIR}"
+  fi
+
+  # shellcheck disable=SC2044
+  for  file  in  $(find lnrpc -type f -name '*.proto'); do
+    relevant_path="$(echo "${file}" | awk -F  '/' '{printf "%s/%s", $(NF-1),$NF}')"
+    log_pad "\t${relevant_path}…"
+
+    mkdir -p "${dir}/$(dirname "${relevant_path}")"
+    cp "${file}" "${dir}/${relevant_path}"
+
+    # Alter `.proto` files:
+    #   1. Change import paths for `.proto` files: `rpc.proto` -> `lnrpc/rpc.proto`
+    #   2. Change package paths for output `.go` files: `github.com/lightningnetwork/lnd` -> `github.com/lncm/lnd-rpc/<TAG>/`
+    ${SED} -i \
+        -e "s|\(import \"\)\(rpc.proto\"\)|\1lnrpc/\2|g"  \
+        -e "s|\(github.com\)/lightningnetwork/lnd|\1/lncm/lnd-rpc/${tag}|g" \
+        "${dir}/${relevant_path}"
+
+  done
+}
+
+# Clone lnd's repo, and from it extract all necessary .proto files
+fetch_lnd() {
+  tag="$1"
+
+  log "Processing ${tag:-all tags}…"
+
+  # Create a temporary directory
+  tmp_dir="$(mktemp -d)"
+
+  # "Decorate" $tag, if set, ex:  `v0.9.0` becomes `-b v0.9.0-beta`
+  clone_arg=${tag:+-b "${tag}"-beta}
+
+  # `-c advice.detachedHead=false` - hide the huge warning about "detached HEAD"
+  # `--depth=1` - don't clone the entire history, just the very last state
+  # shellcheck disable=SC2086
+  git -c advice.detachedHead=false  clone  --quiet  --depth=1  ${clone_arg}  https://github.com/lightningnetwork/lnd.git  "${tmp_dir}"
+  log_ok "repo cloned"
+
+  # Start new subshell
+  (
+    cd "${tmp_dir}"
+
+    # If specific `$tag` provided, just copy files from it and _return_ from the subshell
+    if [ -n "${tag}" ]; then
+      log_arrow "copying…"
+      lnd_copy_files "${tag}"
+      return
+    fi
+
+    # Otherwise construct a list of all non-RC tags that comply with semver
+    log_arrow "fetching tags…"
+    git fetch  --quiet  --depth=1  --tags
+    tag_list=$(git tag | ${SED} 's|-beta||' | grep '^v\d\.\d\.\d$')
+
+    # Checkout into each, and copy relevant files to desired destination
+    for  found_tag  in  ${tag_list}; do
+      log_arrow "${found_tag}…"
+      git checkout --quiet  "${found_tag}-beta"
+      lnd_copy_files "${found_tag}"
+    done
+  )
+
+
+  # clean up
+  rm -rf "${tmp_dir}"
+  log_ok "cleaned up"
+  log_ok "done"
+}
+
+
+#
+##  MAIN;  This is where the logic of execution begins
+#
+while :; do
+  opt="$1"
+
+  # Handle fmt: `--output=/tmp/` or `-o=/tmp/`;  Split `opt` on `=` into `opt` & `value`
+  # NOTE: prepended with `=`, because if `-d` isn't found, `cut` ignores `-f`, and returns the whole string regardless…
+  value="$(echo "=${opt}" | cut -d= -f3)"
+  if [ -n "${value}" ]; then
+    opt="$(echo "=${opt}" | cut -d= -f2)"
+  fi
+
+  case "${opt}" in
+    -h|--help|help)
+      show_help
+      exit 0
+      ;;
+
+    -G|--no-google)     GOOGLE_PROTOS=false ;;
+    -S|--strip-version) STRIP_VER=true      ;;
+
+    -o|--output)
+      if [ -z "${value}" ] && [ "$2" = "${2#-}" ]; then
+        value="$2"
+        shift
+      fi
+
+      if [ -z "${value}" ]; then
+        log_err_input "${opt} requires a non-empty argument"
+        exit 1
+      fi
+
+      DIR="${value}"
+      ;;
+
+    --) shift ; break ;;
+
+    -?*)
+      log_err_input "Unknown option: $1"
+      exit 1
+      ;;
+
+    *) break
+  esac
+
+  shift
+done
+
+
+# If DIR is already set, use it
+# If not, use `pwd`
+DIR="${DIR:-$(pwd)}"
+
+if [ -z "$1" ]; then
+  log_err_input 'Lnd version has to be provided (ex: v0.9.0), or "all"'
+  exit 1
+fi
+
+TAG="$1"
+shift
+
+if [ "${TAG}" = "all" ] && [ "${STRIP_VER}" = "true" ]; then
+  log_err_input "--strip-version cannot be provided together with \"all\""
+  exit 1
+fi
+
+if [ "${TAG}" !=  "all" ]; then
+  # Make sure version always starts with v
+  TAG="v${TAG#v}"
+
+  # Remove possible`-beta` suffix
+  TAG="$(echo "${TAG}" | cut -d- -f1)"
+
+else
+  TAG=
+fi
+
+check_dependencies  git  wget  jq  mktemp
+
+if [ "${GOOGLE_PROTOS}" != "false" ]; then
+  fetch_core_protos
+  fetch_googleapis
+fi
+
+fetch_lnd "${TAG}"
+
+
+

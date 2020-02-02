@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package watchtowerrpc;
 
-option go_package = "github.com/lncm/lnd-rpc/v0.8.2/watchtowerrpc";
+option go_package = "github.com/lncm/lnd-rpc/v0.8.2/lnrpc/watchtowerrpc";
 
 service Watchtower {
         /** lncli: tower info

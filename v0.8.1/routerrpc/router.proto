@@ -4,7 +4,7 @@ import "lnrpc/rpc.proto";
 
 package routerrpc;
 
-option go_package = "github.com/lncm/lnd-rpc/v0.8.1/routerrpc";
+option go_package = "github.com/lncm/lnd-rpc/v0.8.1/lnrpc/routerrpc";
 
 message SendPaymentRequest {
     /// The identity pubkey of the payment recipient
