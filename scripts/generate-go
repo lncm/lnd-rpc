@@ -2,10 +2,6 @@
 
 set -e
 
-#
-##
-#
-
 show_help() {
   cat << EOF >&2
 generate-go v1.0.0
@@ -19,6 +15,7 @@ Where LND_VERSION is in a form: [v]MAJOR.MINOR.PATCH (ex: v0.9.0), or "all" to g
 Options:
 
   -h, --help, help      Show this help message
+  -S, --strip-version   Don't include lnd version in the path (only works if LND_VERSION != "all")
   -o, --output          Save generated files to a specified dir (created, if doesn't exist)
 
 Examples:
@@ -62,8 +59,9 @@ log_err_input() {
 }
 
 
-# DIR is scoped globally, because it can be used anywhere
+## These hold things set via command line. Better to have them scoped globally
 DIR=
+STRIP_VER=false
 
 
 check_dependencies() {
@@ -82,11 +80,24 @@ check_dependencies() {
 generate_go_for_tag() {
   tag=$1
 
-  log "Generating .go for ${tag#./}…"
+  tmp_dir="$(mktemp -d)"
+
+  log "Generating .go for ${tag}…"
   for  proto  in  "${tag}"/*/*.proto; do
-    log_arrow "${proto#./}…"
-    protoc --go_out=plugins=grpc,paths=source_relative:${DIR}  -I.  -I"${tag}"  "${proto}"
+    log_arrow "${proto}…"
+    protoc --go_out=plugins=grpc,paths=source_relative:"${tmp_dir}"  -I.  -I"./${tag}"  "${proto}"
   done
+
+  log "Moving files to final destination…"
+  (
+    cd "${tmp_dir}"
+
+    if [ "${STRIP_VER}" = "true" ]; then
+      cd "${tag}"
+    fi
+
+    find . -name '*.go' | cpio -pdmu "${DIR}"
+  )
 
   log_ok "done"
 }
@@ -110,6 +121,8 @@ while :; do
       show_help
       exit 0
       ;;
+
+    -S|--strip-version) STRIP_VER=true ;;
 
     -o|--output)
       if [ -z "${value}" ] && [ "$2" = "${2#-}" ]; then
@@ -151,6 +164,11 @@ fi
 TAG="$1"
 shift
 
+if [ "${TAG}" = "all" ] && [ "${STRIP_VER}" = "true" ]; then
+  log_err_input "--strip-version cannot be provided together with \"all\""
+  exit 1
+fi
+
 if [ "${TAG}" !=  "all" ]; then
   # Make sure version always starts with v
   TAG="v${TAG#v}"
@@ -162,10 +180,12 @@ else
   TAG=
 fi
 
+log "Generating ${TAG} into ${DIR}…"
+
 check_dependencies protoc
 mkdir -p "${DIR}"
 
 # Use TAG, if provided, otherwise loop through all ./v*/ directories
 for  dir  in  ./${TAG:-v**}; do
-  generate_go_for_tag "${dir}"
+  generate_go_for_tag "${dir#./}"
 done

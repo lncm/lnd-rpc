@@ -111,11 +111,7 @@ fetch_core_protos() {
     log_ok "unzipped"
 
     cd include/
-    find google/protobuf -type d -exec mkdir -p "${DIR}/{}" \;
-    log_ok "dirs created"
-
-    find google  -name '*.proto'  -type f  -exec mv -f  {}  "${DIR}/{}"  \;
-    log_ok "files moved"
+    find google -name '*.proto'  -type f | cpio -pdmu "${DIR}"
   )
 
   # clean up
