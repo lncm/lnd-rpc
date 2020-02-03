@@ -1,0 +1,215 @@
+#!/usr/bin/env sh
+
+set -e
+
+show_help() {
+  cat << EOF >&2
+generate-python v1.0.0
+
+Compile all .proto definitions into .py files
+
+Usage: generate-python [options] LND_VERSION
+
+Where LND_VERSION is in a form: [v]MAJOR.MINOR.PATCH (ex: v0.9.0), or "all" to generate for all versions
+
+Options:
+
+  -h, --help, help      Show this help message
+  -S, --strip-version   Don't include lnd version in the path (only works if LND_VERSION != "all")
+  -o, --output          Save generated files to a specified dir (created, if doesn't exist)
+
+Examples:
+
+  ./generate-python all
+  ./generate-python  -o /tmp/last/  v0.9.0
+
+github: github.com/lncm/lnd-rpc/
+
+EOF
+}
+
+# If no arguments passed, show help and exit
+if [ "$#" -le 0 ]; then
+  show_help
+  exit 1
+fi
+
+
+#
+##  UTILS;  General purpose utility fns
+#
+## Define logging utility fns as early as possible
+log() {
+  # shellcheck disable=SC2059
+  >&2 printf "$*\n"
+}
+log_pad() {
+  log "\t$*"
+}
+log_arrow() {
+  log_pad "-> $*"
+}
+log_err() {
+  log
+  log_pad  "ERR: $*"
+  log
+}
+log_ok() {
+  log_arrow "${*:-ok}" # if nothing passed, write "ok"
+}
+log_err_input() {
+  log_err "$*"
+  show_help
+}
+
+check_dependencies() {
+  log "Checking dependencies…"
+  for  cmd  in  "$@"; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+      log_err "This script requires \"$cmd\" to be installed"
+      exit 1
+    fi
+  done
+  log_ok
+}
+
+
+
+#
+##  DEFINITIONS;  Globally-scoped variables
+#
+DIR=
+STRIP_VER=false
+
+
+
+#
+##  LOGIC;  `generate-python` logic
+#
+# Take .proto file, and generate a .py file out of it
+generate_py_for_tag() {
+  tag=$1
+  base="$(pwd)"
+
+  tmp_dir="$(mktemp -d)"
+
+  log "Generating .py for ${tag}…"
+  (
+    cd "$tag"
+
+    for  proto  in  */*.proto; do
+      log_arrow "${proto}…"
+
+      python -m grpc.tools.protoc \
+        --proto_path=. \
+        --proto_path="$base/" \
+        --python_out="$tmp_dir" \
+        --grpc_python_out="$tmp_dir" \
+        "$proto"
+    done
+  )
+
+  log_pad "Moving files to final destination…"
+  (
+    cd "$tmp_dir"
+
+    suffix=
+    if [ "$STRIP_VER" != "true" ]; then
+      suffix="$tag/"
+    fi
+
+    find .  -name '*.py'  -type f | cpio -pdmu "$DIR/$suffix" 2>/dev/null
+  )
+
+  log_ok "done"
+}
+
+
+#
+##  MAIN;  This is where the execution begins
+#
+while :; do
+  opt="$1"
+
+  # Handle fmt: `--output=/tmp/` or `-o=/tmp/`;  Split `opt` on `=` into `opt` & `value`
+  # NOTE: prepended with `=`, because if `-d` isn't found, `cut` ignores `-f`, and returns the whole string regardless…
+  value="$(echo "=$opt" | cut -d= -f3)"
+  if [ -n "$value" ]; then
+    opt="$(echo "=$opt" | cut -d= -f2)"
+  fi
+
+  case "$opt" in
+    -h|--help|help)
+      show_help
+      exit 0
+      ;;
+
+    -S|--strip-version) STRIP_VER=true ;;
+
+    -o|--output)
+      if [ -z "$value" ] && [ "$2" = "${2#-}" ]; then
+        value="$2"
+        shift
+      fi
+
+      if [ -z "$value" ]; then
+        log_err_input "$opt requires a non-empty argument"
+        exit 1
+      fi
+
+      DIR="$value"
+      ;;
+
+    --) shift ; break ;;
+
+    -?*)
+      log_err_input "Unknown option: $1"
+      exit 1
+      ;;
+
+    *) break
+  esac
+
+  shift
+done
+
+
+# If DIR is already set, use it
+# If not, use `pwd`
+DIR="${DIR:-$(pwd)}"
+
+if [ -z "$1" ]; then
+  log_err_input 'LND_VERSION has to be provided (ex: v0.9.0), or "all"'
+  exit 1
+fi
+
+TAG="$1"
+shift
+
+if [ "$TAG" = "all" ] && [ "$STRIP_VER" = "true" ]; then
+  log_err_input '--strip-version cannot be set together with "all"'
+  exit 1
+fi
+
+if [ "$TAG" !=  "all" ]; then
+  # Make sure version always starts with v
+  TAG="v${TAG#v}"
+
+  # Remove possible`-beta` suffix
+  TAG="${TAG%-beta}"
+else
+  TAG=
+fi
+
+# Parsing args done, log start
+log "Generating ${TAG:-all} into ${DIR}…"
+
+check_dependencies protoc python
+
+# Make sure output directory exists
+mkdir -p "$DIR"
+
+# Use TAG, if provided, otherwise loop through all ./v*/ directories
+for  dir  in  ./${TAG:-v**}; do
+  generate_py_for_tag "${dir#./}"
+done
