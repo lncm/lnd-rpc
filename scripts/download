@@ -42,9 +42,12 @@ fi
 ##  UTILS;  General purpose utility fns
 #
 ## Define logging utility fns as early as possible
-log() {
+log_raw() {
   # shellcheck disable=SC2059
-  >&2 printf "$*\n"
+  >&2 printf "$*"
+}
+log() {
+  log_raw "$*\n"
 }
 log_pad() {
   log "\t$*"
@@ -68,8 +71,8 @@ log_err_input() {
 check_dependencies() {
   log "Checking dependencies…"
   for  cmd  in  "$@"; do
-    if ! command -v "${cmd}" >/dev/null 2>&1; then
-      log_err "This script requires \"${cmd}\" to be installed"
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+      log_err "This script requires \"$cmd\" to be installed"
       exit 1
     fi
   done
@@ -99,31 +102,31 @@ STRIP_VER=false
 fetch_core_protos() {
   log "Getting latest git-tag for protocolbuffers/protobuf…"
   last=$(wget -qO- "https://api.github.com/repos/protocolbuffers/protobuf/releases/latest" | jq -r '.tag_name')
-  log_ok "${last}"
+  log_ok "$last"
 
   # Create a temporary directory
   tmp_dir="$(mktemp -d)"
 
   # Download last release of protoc for the current OS & architecture
-  log "Downloading protoc ${last} bundle…"
+  log "Downloading protoc $last bundle…"
   # NOTE: only .proto files are used from there, so OS/ARCH pair doesn't matter at all
-  wget --quiet  --output-document="${tmp_dir}/protoc.zip" \
-      "https://github.com/protocolbuffers/protobuf/releases/download/${last}/protoc-${last#v}-linux-x86_64.zip"
+  wget --quiet  --output-document="$tmp_dir/protoc.zip" \
+      "https://github.com/protocolbuffers/protobuf/releases/download/$last/protoc-${last#v}-linux-x86_64.zip"
   log_ok
 
   # Unzip downloaded release in temp dir;  Wrapped with a subshell to `cd` w/o side effects
   (
     log "Processing core protos…"
-    cd "${tmp_dir}"
+    cd "$tmp_dir"
     unzip -q protoc.zip
     log_ok "unzipped"
 
     cd include/
-    find google -name '*.proto'  -type f | cpio -pdmu "${DIR}"
+    find google -name '*.proto'  -type f | cpio -pdmu "$DIR"
   )
 
   # clean up
-  rm -rf "${tmp_dir}"
+  rm -rf "$tmp_dir"
   log_ok "cleaned up"
   log_ok "done"
 }
@@ -135,13 +138,13 @@ fetch_googleapis() {
 
   log "Downloading known lnd deps from ${dir}…"
 
-  mkdir -p "${DIR}/${dir}/"
+  mkdir -p "$DIR/$dir/"
 
   for proto  in  annotations  http; do
-    full_path="${dir}/${proto}.proto"
+    full_path="$dir/$proto.proto"
 
-    log_arrow "${full_path}"
-    wget --quiet  -O-  "${url_base}/${full_path}"  >  "${DIR}/${full_path}"
+    log_arrow "$full_path"
+    wget --quiet  -O-  "$url_base/$full_path"  >  "$DIR/$full_path"
   done
 
   log_ok "done"
@@ -151,26 +154,26 @@ fetch_googleapis() {
 lnd_copy_files() {
   tag=$1
 
-  dir="${DIR}/${tag}"
-  if [ "${STRIP_VER}" = "true" ]; then
-      dir="${DIR}"
+  dir="$DIR/$tag"
+  if [ "$STRIP_VER" = "true" ]; then
+      dir="$DIR"
   fi
 
   # shellcheck disable=SC2044
   for  file  in  $(find lnrpc -type f -name '*.proto'); do
-    relevant_path="$(echo "${file}" | awk -F  '/' '{printf "%s/%s", $(NF-1),$NF}')"
-    log_pad "\t${relevant_path}…"
+    relevant_path="$(echo "$file" | awk -F  '/' '{printf "%s/%s", $(NF-1),$NF}')"
+    log_arrow "${relevant_path}…"
 
-    mkdir -p "${dir}/$(dirname "${relevant_path}")"
-    cp "${file}" "${dir}/${relevant_path}"
+    mkdir -p "$dir/$(dirname "$relevant_path")"
+    cp "$file" "$dir/$relevant_path"
 
     # Alter `.proto` files:
     #   1. Change import paths for `.proto` files: `rpc.proto` -> `lnrpc/rpc.proto`
     #   2. Change package paths for output `.go` files: `github.com/lightningnetwork/lnd` -> `github.com/lncm/lnd-rpc/<TAG>/`
-    ${SED} -i \
+    $SED -i \
         -e "s|\(import \"\)\(rpc.proto\"\)|\1lnrpc/\2|g"  \
-        -e "s|\(github.com\)/lightningnetwork/lnd|\1/lncm/lnd-rpc/${tag}|g" \
-        "${dir}/${relevant_path}"
+        -e "s|\(github.com\)/lightningnetwork/lnd|\1/lncm/lnd-rpc/$tag|g" \
+        "$dir/$relevant_path"
 
   done
 }
@@ -185,41 +188,41 @@ fetch_lnd() {
   tmp_dir="$(mktemp -d)"
 
   # "Decorate" $tag, if set, ex:  `v0.9.0` becomes `-b v0.9.0-beta`
-  clone_arg=${tag:+-b "${tag}"-beta}
+  clone_arg=${tag:+-b "$tag"-beta}
 
   # `-c advice.detachedHead=false` - hide the huge warning about "detached HEAD"
   # `--depth=1` - don't clone the entire history, just the very last state
   # shellcheck disable=SC2086
-  git -c advice.detachedHead=false  clone  --quiet  --depth=1  ${clone_arg}  https://github.com/lightningnetwork/lnd.git  "${tmp_dir}"
+  git -c advice.detachedHead=false  clone  --quiet  --depth=1  $clone_arg  https://github.com/lightningnetwork/lnd.git  "$tmp_dir"
   log_ok "repo cloned"
 
   # Start new subshell
   (
-    cd "${tmp_dir}"
+    cd "$tmp_dir"
 
     # If specific `$tag` provided, just copy files from it and _return_ from the subshell
-    if [ -n "${tag}" ]; then
+    if [ -n "$tag" ]; then
       log_arrow "copying…"
-      lnd_copy_files "${tag}"
+      lnd_copy_files "$tag"
       return
     fi
 
     # Otherwise construct a list of all non-RC tags that comply with semver
     log_arrow "fetching tags…"
     git fetch  --quiet  --depth=1  --tags
-    tag_list=$(git tag | ${SED} 's|-beta||' | grep '^v\d\.\d\.\d$')
+    tag_list=$(git tag | $SED 's|-beta||' | grep '^v\d\.\d\.\d$')
 
     # Checkout into each, and copy relevant files to desired destination
-    for  found_tag  in  ${tag_list}; do
-      log_arrow "${found_tag}…"
-      git checkout --quiet  "${found_tag}-beta"
-      lnd_copy_files "${found_tag}"
+    for  found_tag  in  $tag_list; do
+      log "Processing ${found_tag}…"
+      git checkout --quiet  "$found_tag-beta"
+      lnd_copy_files "$found_tag"
     done
   )
 
   # clean up
-  rm -rf "${tmp_dir}"
-  log_ok "cleaned up"
+  log "cleaning up…"
+  rm -rf "$tmp_dir"
   log_ok "done"
 }
 
@@ -233,12 +236,12 @@ while :; do
 
   # Handle fmt: `--output=/tmp/` or `-o=/tmp/`;  Split `opt` on `=` into `opt` & `value`
   # NOTE: prepended with `=`, because if `-d` isn't found, `cut` ignores `-f`, and returns the whole string regardless…
-  value="$(echo "=${opt}" | cut -d= -f3)"
-  if [ -n "${value}" ]; then
-    opt="$(echo "=${opt}" | cut -d= -f2)"
+  value="$(echo "=$opt" | cut -d= -f3)"
+  if [ -n "$value" ]; then
+    opt="$(echo "=$opt" | cut -d= -f2)"
   fi
 
-  case "${opt}" in
+  case "$opt" in
     -h|--help|help)
       show_help
       exit 0
@@ -248,17 +251,17 @@ while :; do
     -S|--strip-version) STRIP_VER=true      ;;
 
     -o|--output)
-      if [ -z "${value}" ] && [ "$2" = "${2#-}" ]; then
+      if [ -z "$value" ] && [ "$2" = "${2#-}" ]; then
         value="$2"
         shift
       fi
 
-      if [ -z "${value}" ]; then
-        log_err_input "${opt} requires a non-empty argument"
+      if [ -z "$value" ]; then
+        log_err_input "$opt requires a non-empty argument"
         exit 1
       fi
 
-      DIR="${value}"
+      DIR="$value"
       ;;
 
     --) shift ; break ;;
@@ -287,35 +290,35 @@ fi
 TAG="$1"
 shift
 
-if [ "${TAG}" = "all" ] && [ "${STRIP_VER}" = "true" ]; then
+if [ "$TAG" = "all" ] && [ "$STRIP_VER" = "true" ]; then
   log_err_input '--strip-version cannot be set together with "all"'
   exit 1
 fi
 
-if [ "${TAG}" !=  "all" ]; then
+if [ "$TAG" !=  "all" ]; then
   # Make sure version always starts with v
   TAG="v${TAG#v}"
 
   # Remove possible`-beta` suffix
-  TAG="$(echo "${TAG}" | cut -d- -f1)"
+  TAG="${TAG%-beta}"
 else
   TAG=
 fi
 
 # Parsing args done, log start
-log "Downloading ${TAG} into ${DIR}…"
+log "Downloading ${TAG:-all} into ${DIR}…"
 
 check_dependencies  git  wget  jq  mktemp
 
 # Make sure output directory exists
-mkdir -p "${DIR}"
+mkdir -p "$DIR"
 
-if [ "${GOOGLE_PROTOS}" != "false" ]; then
+if [ "$GOOGLE_PROTOS" != "false" ]; then
   fetch_core_protos
   fetch_googleapis
 fi
 
-fetch_lnd "${TAG}"
+fetch_lnd "$TAG"
 
 
 

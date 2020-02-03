@@ -65,8 +65,8 @@ log_err_input() {
 check_dependencies() {
   log "Checking dependencies…"
   for  cmd  in  "$@"; do
-    if ! command -v "${cmd}" >/dev/null 2>&1; then
-      log_err "This script requires \"${cmd}\" to be installed"
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+      log_err "This script requires \"$cmd\" to be installed"
       exit 1
     fi
   done
@@ -92,20 +92,20 @@ generate_go_for_tag() {
   tmp_dir="$(mktemp -d)"
 
   log "Generating .go for ${tag}…"
-  for  proto  in  "${tag}"/*/*.proto; do
+  for  proto  in  "$tag"/*/*.proto; do
     log_arrow "${proto}…"
-    protoc --go_out=plugins=grpc,paths=source_relative:"${tmp_dir}"  -I.  -I"./${tag}"  "${proto}"
+    protoc --go_out=plugins=grpc,paths=source_relative:"$tmp_dir"  -I.  -I"./$tag"  "$proto"
   done
 
-  log "Moving files to final destination…"
+  log_pad "Moving files to final destination…"
   (
-    cd "${tmp_dir}"
+    cd "$tmp_dir"
 
-    if [ "${STRIP_VER}" = "true" ]; then
-      cd "${tag}"
+    if [ "$STRIP_VER" = "true" ]; then
+      cd "$tag"
     fi
 
-    find . -name '*.go' | cpio -pdmu "${DIR}"
+    find . -name '*.go' | cpio -pdmu "$DIR" 2>/dev/null
   )
 
   log_ok "done"
@@ -121,12 +121,12 @@ while :; do
 
   # Handle fmt: `--output=/tmp/` or `-o=/tmp/`;  Split `opt` on `=` into `opt` & `value`
   # NOTE: prepended with `=`, because if `-d` isn't found, `cut` ignores `-f`, and returns the whole string regardless…
-  value="$(echo "=${opt}" | cut -d= -f3)"
-  if [ -n "${value}" ]; then
-    opt="$(echo "=${opt}" | cut -d= -f2)"
+  value="$(echo "=$opt" | cut -d= -f3)"
+  if [ -n "$value" ]; then
+    opt="$(echo "=$opt" | cut -d= -f2)"
   fi
 
-  case "${opt}" in
+  case "$opt" in
     -h|--help|help)
       show_help
       exit 0
@@ -135,17 +135,17 @@ while :; do
     -S|--strip-version) STRIP_VER=true ;;
 
     -o|--output)
-      if [ -z "${value}" ] && [ "$2" = "${2#-}" ]; then
+      if [ -z "$value" ] && [ "$2" = "${2#-}" ]; then
         value="$2"
         shift
       fi
 
-      if [ -z "${value}" ]; then
-        log_err_input "${opt} requires a non-empty argument"
+      if [ -z "$value" ]; then
+        log_err_input "$opt requires a non-empty argument"
         exit 1
       fi
 
-      DIR="${value}"
+      DIR="$value"
       ;;
 
     --) shift ; break ;;
@@ -174,28 +174,28 @@ fi
 TAG="$1"
 shift
 
-if [ "${TAG}" = "all" ] && [ "${STRIP_VER}" = "true" ]; then
+if [ "$TAG" = "all" ] && [ "$STRIP_VER" = "true" ]; then
   log_err_input '--strip-version cannot be set together with "all"'
   exit 1
 fi
 
-if [ "${TAG}" !=  "all" ]; then
+if [ "$TAG" !=  "all" ]; then
   # Make sure version always starts with v
   TAG="v${TAG#v}"
 
   # Remove possible`-beta` suffix
-  TAG="$(echo "${TAG}" | cut -d- -f1)"
+  TAG="${TAG%-beta}"
 else
   TAG=
 fi
 
 # Parsing args done, log start
-log "Generating ${TAG} into ${DIR}…"
+log "Generating ${TAG:-all} into ${DIR}…"
 
 check_dependencies protoc
 
 # Make sure output directory exists
-mkdir -p "${DIR}"
+mkdir -p "$DIR"
 
 # Use TAG, if provided, otherwise loop through all ./v*/ directories
 for  dir  in  ./${TAG:-v**}; do
