@@ -34,7 +34,11 @@ if [ "$#" -le 0 ]; then
   exit 1
 fi
 
-# Define logging utility fns as early as possible
+
+#
+##  UTILS;  General purpose utility fns
+#
+## Define logging utility fns as early as possible
 log() {
   # shellcheck disable=SC2059
   >&2 printf "$*\n"
@@ -58,12 +62,6 @@ log_err_input() {
   show_help
 }
 
-
-## These hold things set via command line. Better to have them scoped globally
-DIR=
-STRIP_VER=false
-
-
 check_dependencies() {
   log "Checking dependencies…"
   for  cmd  in  "$@"; do
@@ -76,7 +74,18 @@ check_dependencies() {
 }
 
 
-# Take .proto file, and generate a .go file out of it
+
+#
+##  DEFINITIONS;  Globally-scoped variables
+#
+DIR=
+STRIP_VER=false
+
+
+
+#
+##  LOGIC;  `generate-go` logic
+#
 generate_go_for_tag() {
   tag=$1
 
@@ -103,8 +112,9 @@ generate_go_for_tag() {
 }
 
 
+
 #
-##  MAIN;  This is where the logic of execution begins
+##  MAIN;  This is where the execution begins
 #
 while :; do
   opt="$1"
@@ -157,7 +167,7 @@ done
 DIR="${DIR:-$(pwd)}"
 
 if [ -z "$1" ]; then
-  log_err_input 'Lnd version has to be provided (ex: v0.9.0), or "all"'
+  log_err_input 'LND_VERSION has to be provided (ex: v0.9.0), or "all"'
   exit 1
 fi
 
@@ -165,7 +175,7 @@ TAG="$1"
 shift
 
 if [ "${TAG}" = "all" ] && [ "${STRIP_VER}" = "true" ]; then
-  log_err_input "--strip-version cannot be provided together with \"all\""
+  log_err_input '--strip-version cannot be set together with "all"'
   exit 1
 fi
 
@@ -175,14 +185,16 @@ if [ "${TAG}" !=  "all" ]; then
 
   # Remove possible`-beta` suffix
   TAG="$(echo "${TAG}" | cut -d- -f1)"
-
 else
   TAG=
 fi
 
+# Parsing args done, log start
 log "Generating ${TAG} into ${DIR}…"
 
 check_dependencies protoc
+
+# Make sure output directory exists
 mkdir -p "${DIR}"
 
 # Use TAG, if provided, otherwise loop through all ./v*/ directories

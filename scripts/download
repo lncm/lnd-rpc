@@ -21,10 +21,10 @@ Options:
 
 Examples:
 
-  ./scripts/download  all                          # Download all lnd versions, and all google/* protos
-  ./scripts/download  --no-google  v0.4.2          # Only download protos for lnd v0.4.2, and no google/* protos
-  ./scripts/download  -G -S -o=~/last-lnd/ v0.9.0  # Only download protos for lnd v0.9.0, and save them to last-lnd/
-                                                   #    in user's HOME directory w/o the /LND_VERSION/ segment in path
+  ./scripts/download  all                         # Download all lnd versions, and all google/* protos
+  ./scripts/download --no-google  v0.4.2          # Only download protos for lnd v0.4.2, and no google/* protos
+  ./scripts/download -G -S -o=~/last-lnd/ v0.9.0  # Only download protos for lnd v0.9.0, and save them to last-lnd/
+                                                  #    in user's HOME directory w/o the /LND_VERSION/ segment in path
 
 github: github.com/lncm/lnd-rpc/
 
@@ -37,6 +37,10 @@ if [ "$#" -le 0 ]; then
   exit 1
 fi
 
+
+#
+##  UTILS;  General purpose utility fns
+#
 ## Define logging utility fns as early as possible
 log() {
   # shellcheck disable=SC2059
@@ -61,20 +65,6 @@ log_err_input() {
   show_help
 }
 
-
-# If `gsed` is available (MacOS built-in `sed` is hardly functional)
-SED="sed"
-if command -v gsed >/dev/null; then
-  SED=gsed
-fi
-
-
-## These hold things set via command line. Better to have them scoped globally
-DIR=
-GOOGLE_PROTOS=true
-STRIP_VER=false
-
-
 check_dependencies() {
   log "Checking dependencies…"
   for  cmd  in  "$@"; do
@@ -86,7 +76,25 @@ check_dependencies() {
   log_ok
 }
 
+# If `gsed` is available (MacOS built-in `sed` is hardly functional)
+SED="sed"
+if command -v gsed >/dev/null; then
+  SED=gsed
+fi
 
+
+#
+##  DEFINITIONS;  Globally-scoped variables
+#
+DIR=
+GOOGLE_PROTOS=true
+STRIP_VER=false
+
+
+
+#
+##  LOGIC;  `download` logic
+#
 # Fetch core protobuf definitions
 fetch_core_protos() {
   log "Getting latest git-tag for protocolbuffers/protobuf…"
@@ -209,7 +217,6 @@ fetch_lnd() {
     done
   )
 
-
   # clean up
   rm -rf "${tmp_dir}"
   log_ok "cleaned up"
@@ -217,8 +224,9 @@ fetch_lnd() {
 }
 
 
+
 #
-##  MAIN;  This is where the logic of execution begins
+##  MAIN;  This is where the execution begins
 #
 while :; do
   opt="$1"
@@ -272,7 +280,7 @@ done
 DIR="${DIR:-$(pwd)}"
 
 if [ -z "$1" ]; then
-  log_err_input 'Lnd version has to be provided (ex: v0.9.0), or "all"'
+  log_err_input 'LND_VERSION has to be provided (ex: v0.9.0), or "all"'
   exit 1
 fi
 
@@ -280,7 +288,7 @@ TAG="$1"
 shift
 
 if [ "${TAG}" = "all" ] && [ "${STRIP_VER}" = "true" ]; then
-  log_err_input "--strip-version cannot be provided together with \"all\""
+  log_err_input '--strip-version cannot be set together with "all"'
   exit 1
 fi
 
@@ -290,12 +298,17 @@ if [ "${TAG}" !=  "all" ]; then
 
   # Remove possible`-beta` suffix
   TAG="$(echo "${TAG}" | cut -d- -f1)"
-
 else
   TAG=
 fi
 
+# Parsing args done, log start
+log "Downloading ${TAG} into ${DIR}…"
+
 check_dependencies  git  wget  jq  mktemp
+
+# Make sure output directory exists
+mkdir -p "${DIR}"
 
 if [ "${GOOGLE_PROTOS}" != "false" ]; then
   fetch_core_protos
