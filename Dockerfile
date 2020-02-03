@@ -7,6 +7,7 @@ ARG LANG=unknown
 ARG VER_ALPINE=3.11
 
 ARG VER_PYTHON=3.8
+ARG VER_RUBY=2.7
 ARG VER_GO=1.13
 
 
@@ -113,6 +114,31 @@ VOLUME $PYTHON_OUT
 COPY --from=protos-download  /protos/  $PROTOS
 
 ENTRYPOINT ["generate-python", "--output=/data/python/"]
+CMD  ["all"]
+
+
+
+#
+##  Create an image able to generate .rb source files in a specified volume
+#
+FROM ruby:$VER_RUBY-alpine$VER_ALPINE  AS  ruby-builder
+
+RUN apk add --no-cache  findutils  protobuf   ruby-google-protobuf
+
+RUN gem install grpc-tools
+
+COPY scripts/generate-ruby  /usr/local/bin/
+
+ENV PROTOS /data/proto/
+ENV RUBY_OUT /data/ruby/
+RUN mkdir -p  "$PROTOS"  "$RUBY_OUT"
+
+WORKDIR $PROTOS
+VOLUME $RUBY_OUT
+
+COPY --from=protos-download  /protos/  $PROTOS
+
+ENTRYPOINT ["generate-ruby", "--output=/data/ruby/"]
 CMD  ["all"]
 
 
