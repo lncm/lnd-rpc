@@ -1,0 +1,48 @@
+name: Release all versions to pip
+
+on:
+  push:
+    branches:
+      - 'master'
+    paths:
+      - 'setup.py'
+      - 'README.md'
+      - '**.py'
+      - '.github/workflows/release-python.yml'
+
+jobs:
+  build:
+    name: Build & release
+    runs-on: ubuntu-18.04
+
+    env:
+      VER_PYTHON: 3.8
+      APP: lnd-rpc
+
+    steps:
+      - uses: actions/checkout@v2.0.0
+
+      - name: Set up Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{env.VER_PYTHON}}
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip setuptools wheel twine
+
+      - name: Build all packages
+        run: |
+          for  version  in ./v*; do
+            echo
+            echo "Building package for ${version}…"
+            sed -i "s|^version =.*$|version = '${version#./v}'|g" setup.py
+            python setup.py sdist bdist_wheel
+          done
+
+      - name: Upload all packages
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{secrets.TWINE_PASSWORD}}
+        run: twine upload --non-interactive dist/*
+
+
