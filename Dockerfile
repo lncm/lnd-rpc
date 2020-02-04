@@ -1,7 +1,6 @@
 #
 ##  This Dockerfile aims to simpolify generation of ready-to-use gRPC interfaces for multiple programming languages.
 #
-
 ARG LANG=unknown
 
 ARG VER_ALPINE=3.11
@@ -16,14 +15,15 @@ ARG VER_GO=1.13
 #
 FROM alpine:$VER_ALPINE  AS  unknown-builder
 
-RUN printf '\nERR: $LANG has to be specified, try either:\n\t%s\n\t%s\n\n' \
-    'docker build --build-arg="LANG=python" …' \
-    'docker build --target=python-builder …'
+RUN printf '\nERR: $LANG has to be specified, try:\n\t%s\n\n' \
+    'docker build --build-arg="LANG=python" …'
 
 RUN exit 1
 
 
+
 # TODO: Create & use non-root users for each container that's run w/volume
+
 
 
 #
