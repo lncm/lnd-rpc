@@ -6,7 +6,7 @@ on: [push]
 
 jobs:
   build:
-    name: Build lnd
+    name: Build & release
     runs-on: ubuntu-18.04
 
     env:
@@ -19,7 +19,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v1
         with:
-          python-version: ${VER_PYTHON}
+          python-version: ${{env.VER_PYTHON}}
 
       - name: Install dependencies
         run: python -m pip install --upgrade pip setuptools wheel twine
