@@ -35,7 +35,7 @@ jobs:
 
       - name: Upload all packages
         env:
-          TWINE_USER: __token__
+          TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{secrets.TWINE_TEST_PWD}}
         run: twine upload --non-interactive --repository-url https://test.pypi.org/legacy/  dist/*
 
