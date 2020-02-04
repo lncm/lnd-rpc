@@ -113,6 +113,12 @@ generate_py_for_tag() {
   (
     cd "$tmp_dir"
 
+    for  file_py  in  */*.py; do
+      dir=$(dirname "$file_py")
+      file=$(basename "${file_py%.py}")
+      echo "from .$file import *" >> "$dir/__init__.py"
+    done
+
     suffix=
     if [ "$STRIP_VER" != "true" ]; then
       suffix="$tag/"
