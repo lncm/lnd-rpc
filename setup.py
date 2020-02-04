@@ -1,12 +1,12 @@
 from setuptools import setup, find_packages
 
-# NOTE: keep this single-quoted!
 version = '0.9.0'
+build = 2
 
 setup(
     name="lnd-rpc",
 
-    version=f"{version}.post1",
+    version=f"{version}.post{build}",
     packages=find_packages(f"v{version}"),
     package_dir={"": f"v{version}"},
 
