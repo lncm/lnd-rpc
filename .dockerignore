@@ -1,0 +1,12 @@
+*
+
+!google/
+!scripts/
+
+
+# Should've been the below, but https://github.com/moby/moby/issues/30018
+#   !v*/**/*.proto
+
+!v*/
+v*/**/*.go
+v*/**/*.py
