@@ -2,11 +2,11 @@
 
 This repo aims to make _grpc_ communication with (any version of) `lnd` trivial.  
 
-Currently Go, and Python are supported.
+Currently **Go**, and **Python** are supported.
 
 ### Go
 
-While `lnd` natively provides `.go` files for grpc communication, importing the entirety of `lnd` sometimes causes issues with dependencies (ex. the infamous `btcd`), etc.  We aim to solve it by having zero/minimal dependencies, and providing direct access to each version individually.
+While `lnd` natively provides `.go` files for grpc communication, importing the entirety of `lnd` sometimes causes issues with dependencies (ex. the infamous `btcd` versioning), etc.  We aim to solve it by having zero/minimal dependencies, and providing direct access to each version individually.
 
 **tl;dr:** Just use ex. `github.com/lncm/lnd-rpc/v0.9.0/invicesrpc` in your source
 
@@ -18,6 +18,85 @@ This repo also holds the source (and scrips necessary to generate) the contents 
 
 [`lnd-rpc` PyPI package]: https://pypi.org/project/lnd-rpc/
 
+
+## Using
+
+### Go
+
+That snippet shows how to import grpc's from here, and use them to init authenticated lnd client. 
+
+```go
+package main
+
+import (
+    "context"
+    "encoding/hex"
+    "fmt"
+    "io/ioutil"
+    "time"
+    
+    "google.golang.org/grpc"
+    "google.golang.org/grpc/credentials"
+    "gopkg.in/macaroon.v2"
+)
+
+
+import "github.com/lncm/lnd-rpc/v0.9.0/lnrpc"
+
+
+func main() {
+    const file = "path/to/macaroon/file.macaroon"
+
+    macaroonBytes, err := ioutil.ReadFile(file)
+	if err != nil {
+		panic(fmt.Sprintln("Cannot read macaroon file", err))
+	}
+
+	mac := &macaroon.Macaroon{}
+	if err = mac.UnmarshalBinary(macaroonBytes); err != nil {
+		panic(fmt.Sprintln("Cannot unmarshal macaroon", err))
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+    transportCredentials, err := credentials.NewClientTLSFromFile(
+        "path/to/tls/cert",
+       "example.com",
+)
+	if err != nil {
+        panic(err)
+	}
+
+    fullHostname:= fmt.Sprintf("%s:%d", "example.com", 10009)
+
+	connection, err := grpc.DialContext(ctx, fullHostname, []grpc.DialOption{
+		grpc.WithBlock(),
+		grpc.WithTransportCredentials(transportCredentials),
+		grpc.WithPerRPCCredentials(newCreds(macaroonBytes)),
+	}...)
+	if err != nil {
+		panic(fmt.Errorf("unable to connect to %s: %w", fullHostname, err))
+	}
+
+	client := lnrpc.NewLightningClient(connection)
+    
+    // Do stuff with client…
+}
+
+type rpcCreds map[string]string
+
+func (m rpcCreds) RequireTransportSecurity() bool { return true }
+func (m rpcCreds) GetRequestMetadata(_ context.Context, _ ...string) (map[string]string, error) {
+	return m, nil
+}
+
+func newCreds(bytes []byte) rpcCreds {
+	creds := make(map[string]string)
+	creds["macaroon"] = hex.EncodeToString(bytes)
+	return creds
+}
+```
 
 ## tl;dr
 
