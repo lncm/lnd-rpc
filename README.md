@@ -44,35 +44,35 @@ func newCreds(bytes []byte) rpcCreds {
 
 func getClient(hostname string, port int, tlsFile, macaroonFile string) lnrpc.LightningClient  {
     macaroonBytes, err := ioutil.ReadFile(macaroonFile)
-    	if err != nil {
-    		panic(fmt.Sprintln("Cannot read macaroon file", err))
-    	}
-    
-    	mac := &macaroon.Macaroon{}
-    	if err = mac.UnmarshalBinary(macaroonBytes); err != nil {
-    		panic(fmt.Sprintln("Cannot unmarshal macaroon", err))
-    	}
-    
-    	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    	defer cancel()
-    
-        transportCredentials, err := credentials.NewClientTLSFromFile(tlsFile, hostname)
-    	if err != nil {
-            panic(err)
-    	}
-    
-        fullHostname:= fmt.Sprintf("%s:%d", hostname, port)
-    
-    	connection, err := grpc.DialContext(ctx, fullHostname, []grpc.DialOption{
-    		grpc.WithBlock(),
-    		grpc.WithTransportCredentials(transportCredentials),
-    		grpc.WithPerRPCCredentials(newCreds(macaroonBytes)),
-    	}...)
-    	if err != nil {
-    		panic(fmt.Errorf("unable to connect to %s: %w", fullHostname, err))
-    	}
-    
-    	return lnrpc.NewLightningClient(connection)
+    if err != nil {
+        panic(fmt.Sprintln("Cannot read macaroon file", err))
+    }
+
+    mac := &macaroon.Macaroon{}
+    if err = mac.UnmarshalBinary(macaroonBytes); err != nil {
+        panic(fmt.Sprintln("Cannot unmarshal macaroon", err))
+    }
+
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+
+    transportCredentials, err := credentials.NewClientTLSFromFile(tlsFile, hostname)
+    if err != nil {
+        panic(err)
+    }
+
+    fullHostname:= fmt.Sprintf("%s:%d", hostname, port)
+
+    connection, err := grpc.DialContext(ctx, fullHostname, []grpc.DialOption{
+        grpc.WithBlock(),
+        grpc.WithTransportCredentials(transportCredentials),
+        grpc.WithPerRPCCredentials(newCreds(macaroonBytes)),
+    }...)
+    if err != nil {
+        panic(fmt.Errorf("unable to connect to %s: %w", fullHostname, err))
+    }
+
+    return lnrpc.NewLightningClient(connection)
 }
 
 func main() {
