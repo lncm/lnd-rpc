@@ -31,6 +31,7 @@ setup(
     ],
     install_requires=[
         "protobuf",
-        "google-api-core"
+        "google-api-core",
+        "grpcio",
     ]
 )
