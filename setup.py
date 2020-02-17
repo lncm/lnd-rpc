@@ -3,7 +3,7 @@ from os import path
 from setuptools import setup, find_packages
 
 version = '0.9.0'
-build = 4
+build = 5
 
 with open(path.join(path.abspath(path.dirname(__file__)), 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
@@ -30,8 +30,9 @@ setup(
         "Programming Language :: Python :: 3.5",
     ],
     install_requires=[
-        "protobuf",
         "google-api-core",
+        "googleapis-common-protos",
         "grpcio",
+        "protobuf",
     ]
 )
