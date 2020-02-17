@@ -32,8 +32,8 @@ jobs:
 
       - name: Build all packages
         run: |
-          for  version  in ./v*; do
-            echo
+          for version in ./v*; do
+            echo ""
             echo "Building package for ${version}…"
             sed -i "s|^version =.*$|version = '${version#./v}'|g" setup.py
             python setup.py sdist bdist_wheel

@@ -2,11 +2,11 @@
 
 This repo aims to make _grpc_ communication with (any version of) `lnd` trivial.  
 
-Currently **Go**, and **Python** are supported.
+Currently, **Go** and **Python** are supported.
 
 ## Go
 
-While `lnd` natively provides `.go` files for grpc communication, importing the entirety of `lnd` sometimes causes issues with dependencies (ex. the infamous `btcd` versioning), etc.  We aim to solve it by having zero/minimal dependencies, and providing direct access to each version individually.
+While `lnd` natively provides `.go` files for grpc communication, importing the entirety of `lnd` sometimes causes issues with dependencies (ex. the infamous `btcd` versioning), etc. We aim to solve it by having zero/minimal dependencies, and providing direct access to each version individually.
 
 ### Use
 
@@ -25,10 +25,9 @@ import (
     "google.golang.org/grpc"
     "google.golang.org/grpc/credentials"
     "gopkg.in/macaroon.v2"
+    
+    "github.com/lncm/lnd-rpc/v0.9.0/lnrpc"
 )
-
-
-import "github.com/lncm/lnd-rpc/v0.9.0/lnrpc"
 
 
 type rpcCreds map[string]string
@@ -85,14 +84,14 @@ func main() {
 
     client := getClient(hostname, port, tlsFile, macaroonFile)
     
-    // Do stuff with client…
+    // Do stuff with the client…
 }
 ```
 
 
 ## Python3
 
-This repo also holds the source (and scrips necessary to generate) the contents of [`lnd-rpc` PyPI package].  To use it install the version of the version you want to use, and 
+This repo also holds the source (and scrips necessary to generate) the contents of [`lnd-rpc` PyPI package].  To use it, install the version of the version you want to use, and…
 
 [`lnd-rpc` PyPI package]: https://pypi.org/project/lnd-rpc/
 

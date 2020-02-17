@@ -28,8 +28,8 @@ RUN exit 1
 
 #
 ##  This stage creates image that can be used to download all protos:
-#       DOCKER_BUILDKIT=1 docker build  --target protos-downloader  --tag protos-downloader  .
-#       docker run --rm -it  -v=$(pwd)/:/protos  protos-downloader  v0.9.0
+#       DOCKER_BUILDKIT=1 docker build --target protos-downloader --tag protos-downloader .
+#       docker run --rm -it -v=$(pwd)/:/protos protos-downloader v0.9.0
 #
 FROM alpine:$VER_ALPINE  AS  protos-downloader
 

@@ -36,7 +36,7 @@ fi
 
 
 #
-##  UTILS;  General purpose utility fns
+##  UTILS; General purpose utility fns
 #
 ## Define logging utility fns as early as possible
 log() {
@@ -76,7 +76,7 @@ check_dependencies() {
 
 
 #
-##  DEFINITIONS;  Globally-scoped variables
+##  DEFINITIONS; Globally-scoped variables
 #
 DIR=
 STRIP_VER=false
@@ -84,7 +84,7 @@ STRIP_VER=false
 
 
 #
-##  LOGIC;  `generate-go` logic
+##  LOGIC; `generate-go` logic
 #
 generate_go_for_tag() {
   tag=$1
@@ -114,7 +114,7 @@ generate_go_for_tag() {
 
 
 #
-##  MAIN;  This is where the execution begins
+##  MAIN; This is where the execution begins
 #
 while :; do
   opt="$1"
@@ -162,8 +162,7 @@ while :; do
 done
 
 
-# If DIR is already set, use it
-# If not, use `pwd`
+# Use DIR, if set, otherwise use `pwd`
 DIR="${DIR:-$(pwd)}"
 
 if [ -z "$1" ]; then

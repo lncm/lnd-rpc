@@ -39,7 +39,7 @@ fi
 
 
 #
-##  UTILS;  General purpose utility fns
+##  UTILS; General purpose utility fns
 #
 ## Define logging utility fns as early as possible
 log_raw() {
@@ -96,7 +96,7 @@ STRIP_VER=false
 
 
 #
-##  LOGIC;  `download` logic
+##  LOGIC; `download` logic
 #
 # Fetch core protobuf definitions
 fetch_core_protos() {
@@ -187,7 +187,7 @@ fetch_lnd() {
   # Create a temporary directory
   tmp_dir="$(mktemp -d)"
 
-  # "Decorate" $tag, if set, ex:  `v0.9.0` becomes `-b v0.9.0-beta`
+  # "Decorate" $tag, if set, ex: `v0.9.0` becomes `-b v0.9.0-beta`
   clone_arg=${tag:+-b "$tag"-beta}
 
   # `-c advice.detachedHead=false` - hide the huge warning about "detached HEAD"
@@ -207,7 +207,7 @@ fetch_lnd() {
       return
     fi
 
-    # Otherwise construct a list of all non-RC tags that comply with semver
+    # Otherwise, construct a list of all non-RC tags that comply with semver
     log_arrow "fetching tags…"
     git fetch  --quiet  --depth=1  --tags
     tag_list=$(git tag | $SED 's|-beta||' | grep '^v\d\.\d\.\d$')
@@ -229,7 +229,7 @@ fetch_lnd() {
 
 
 #
-##  MAIN;  This is where the execution begins
+##  MAIN; This is where the execution begins
 #
 while :; do
   opt="$1"
@@ -278,8 +278,7 @@ while :; do
 done
 
 
-# If DIR is already set, use it
-# If not, use `pwd`
+# Use DIR, if set, otherwise use `pwd`
 DIR="${DIR:-$(pwd)}"
 
 if [ -z "$1" ]; then

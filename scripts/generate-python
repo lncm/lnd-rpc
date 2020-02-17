@@ -36,7 +36,7 @@ fi
 
 
 #
-##  UTILS;  General purpose utility fns
+##  UTILS; General purpose utility fns
 #
 ## Define logging utility fns as early as possible
 log() {
@@ -76,7 +76,7 @@ check_dependencies() {
 
 
 #
-##  DEFINITIONS;  Globally-scoped variables
+##  DEFINITIONS; Globally-scoped variables
 #
 DIR=
 STRIP_VER=false
@@ -84,7 +84,7 @@ STRIP_VER=false
 
 
 #
-##  LOGIC;  `generate-python` logic
+##  LOGIC; `generate-python` logic
 #
 # Take .proto file, and generate a .py file out of it
 generate_py_for_tag() {
@@ -132,12 +132,12 @@ generate_py_for_tag() {
 
 
 #
-##  MAIN;  This is where the execution begins
+##  MAIN; This is where the execution begins
 #
 while :; do
   opt="$1"
 
-  # Handle fmt: `--output=/tmp/` or `-o=/tmp/`;  Split `opt` on `=` into `opt` & `value`
+  # Handle fmt: `--output=/tmp/` or `-o=/tmp/`; Split `opt` on `=` into `opt` & `value`
   # NOTE: prepended with `=`, because if `-d` isn't found, `cut` ignores `-f`, and returns the whole string regardless…
   value="$(echo "=$opt" | cut -d= -f3)"
   if [ -n "$value" ]; then
@@ -180,8 +180,7 @@ while :; do
 done
 
 
-# If DIR is already set, use it
-# If not, use `pwd`
+# Use DIR, if set, otherwise use `pwd`
 DIR="${DIR:-$(pwd)}"
 
 if [ -z "$1" ]; then
