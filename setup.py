@@ -3,7 +3,7 @@ from os import path
 from setuptools import setup, find_packages
 
 version = '0.9.0'
-build = 9
+build = 10
 
 with open(path.join(path.abspath(path.dirname(__file__)), 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
@@ -12,7 +12,7 @@ setup(
     name="lnd-rpc",
 
     version="{}.post{}".format(version, build),
-    packages={"lnrpc", "autopilotrpc", "chainrpc", "invoicesrpc", "routerrpc", "signrpc", "walletrpc", "watchtowerrpc", "wtclientrpc"},
+    packages=find_packages("v{}".format(version)),
     package_dir={"": "v{}".format(version)},
 
     description="gRPC bindings for various lnd versions",
