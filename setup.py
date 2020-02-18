@@ -12,7 +12,7 @@ setup(
     name="lnd-rpc",
 
     version="{}.post{}".format(version, build),
-    packages=find_packages("v{}".format(version)),
+    packages={"lnrpc", "autopilotrpc", "chainrpc", "invoicesrpc", "routerrpc", "signrpc", "walletrpc", "watchtowerrpc", "wtclientrpc"},
     package_dir={"": "v{}".format(version)},
 
     description="gRPC bindings for various lnd versions",
@@ -35,7 +35,4 @@ setup(
         "grpcio",
         "protobuf",
     ],
-    package_data={
-        "": ["*.proto"],
-    },
 )
