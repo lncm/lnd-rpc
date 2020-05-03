@@ -163,7 +163,7 @@ NOTE: this one requires `DOCKER_BUILDKIT=1` due to usage of `--target=`
 ```shell script
 # Build with:
 DOCKER_BUILDKIT=1  docker build . \
-    --target=protos-downloader
+    --target=protos-downloader \
     --tag=lnd-rpc-downloader
 
 # Run with:
