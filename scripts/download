@@ -210,7 +210,7 @@ fetch_lnd() {
     # Otherwise, construct a list of all non-RC tags that comply with semver
     log_arrow "fetching tags…"
     git fetch  --quiet  --depth=1  --tags
-    tag_list=$(git tag | $SED 's|-beta||' | grep '^v\d\.\d\.\d$')
+    tag_list=$(git tag | $SED 's|-beta||' | grep '^v\d\.\d*\.\d$' | sort -V)
 
     # Checkout into each, and copy relevant files to desired destination
     for  found_tag  in  $tag_list; do
@@ -318,6 +318,3 @@ if [ "$GOOGLE_PROTOS" != "false" ]; then
 fi
 
 fetch_lnd "$TAG"
-
-
-
