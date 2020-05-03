@@ -26,7 +26,7 @@ import (
     "google.golang.org/grpc/credentials"
     "gopkg.in/macaroon.v2"
     
-    "github.com/lncm/lnd-rpc/v0.9.0/lnrpc"
+    "github.com/lncm/lnd-rpc/v0.10.0/lnrpc"
 )
 
 
